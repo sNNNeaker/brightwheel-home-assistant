@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
 from .api import BrightwheelApi
 from .const import CONF_COOKIE, CONF_CSRF, CONF_GUARDIAN_ID, CONF_TOKEN
@@ -24,7 +24,7 @@ PLATFORMS = [
 async def async_setup_entry(hass: HomeAssistant, entry: BrightwheelConfigEntry) -> bool:
     """Set up Brightwheel from a config entry."""
     api = BrightwheelApi(
-        async_get_clientsession(hass),
+        async_create_clientsession(hass),
         token=entry.data.get(CONF_TOKEN),
         cookie=entry.data.get(CONF_COOKIE),
         csrf=entry.data.get(CONF_CSRF),

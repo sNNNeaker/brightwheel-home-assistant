@@ -12,7 +12,7 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant.config_entries import SOURCE_REAUTH, ConfigFlow, ConfigFlowResult
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.helpers.selector import (
     TextSelector,
     TextSelectorConfig,
@@ -55,7 +55,7 @@ class BrightwheelConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def _async_start(self) -> str | None:
         """Start login. Return an error key or None."""
-        self._api = BrightwheelApi(async_get_clientsession(self.hass))
+        self._api = BrightwheelApi(async_create_clientsession(self.hass))
         try:
             self._two_factor_required = await self._api.async_start_login(
                 self._email, self._password

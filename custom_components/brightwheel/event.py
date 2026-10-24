@@ -15,7 +15,6 @@ from .data import (
     activity_time,
     actor_name,
     event_type,
-    image_url,
 )
 from .entity import BrightwheelEntity
 
@@ -67,7 +66,6 @@ class BrightwheelActivityEvent(BrightwheelEntity, EventEntity):
                         "time": when.isoformat() if when else None,
                         "note": activity.get("note"),
                         "by": actor_name(activity),
-                        "image_url": image_url(activity),
                     },
                 )
         self.async_write_ha_state()
