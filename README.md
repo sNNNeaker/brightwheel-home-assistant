@@ -27,23 +27,24 @@ All children of the account are added, one device each. Data is polled every 5 m
 
 ## Installation
 
-Submitted to the HACS community catalog; until it is listed, add it as a **custom repository**. Once listed, search for **Brightwheel** instead and skip the custom repository step.
+Brightwheel is in the HACS community catalog, so you can find it by name; no custom repository is needed.
 
 ### Via the Marketplace (Home Assistant 2026.11 and newer)
 
 From 2026.11 HACS is built into Home Assistant as the **Marketplace** (Settings → Marketplace).
 
-1. Add `https://github.com/sNNNeaker/brightwheel-home-assistant` as a custom repository of type **Integration**. Custom repositories are fetched through the GitHub API, so the Marketplace asks you to connect a GitHub account the first time (catalog entries don't need one).
-2. Download **Brightwheel**. No restart is needed on first install.
-3. Settings → Devices & services → Add integration → **Brightwheel** (see Setup), or use
+1. Search for **Brightwheel** and download it. Catalog entries install from the release asset, so no GitHub connection is needed, and no restart is needed on first install.
+2. Settings → Devices & services → Add integration → **Brightwheel** (see Setup), or use
    [![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=brightwheel)
 
 Updates show up under Settings → Updates; installing an update needs a restart, which the Marketplace offers via a repair.
 
 ### Via HACS (Home Assistant 2026.10 and older)
 
-1. HACS, ⋮ menu, **Custom repositories**; add `https://github.com/sNNNeaker/brightwheel-home-assistant`, category **Integration**
-2. Install **Brightwheel** and restart Home Assistant
+1. In HACS, search for **Brightwheel** and download it.
+2. Restart Home Assistant.
+
+Fallback: if the search doesn't find it yet (the catalog can take a few hours to update), add `https://github.com/sNNNeaker/brightwheel-home-assistant` as a custom repository of type **Integration** (HACS ⋮ menu → Custom repositories). A custom entry added earlier keeps working and can be removed without uninstalling.
 
 ### Manual
 
