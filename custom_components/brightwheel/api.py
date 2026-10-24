@@ -187,6 +187,20 @@ class BrightwheelApi:
                 students.append(student)
         return students
 
+    async def async_get_school_name(self, school_id: str) -> str | None:
+        """Return the school's name, or None if Brightwheel doesn't tell us.
+
+        Best effort: the endpoint is not confirmed, so any error (even 401/403)
+        just means "unknown" and must not trigger a reauth.
+        """
+        try:
+            data, _ = await self._request("GET", f"/schools/{school_id}")
+        except BrightwheelError:
+            return None
+        school = data.get("school") if isinstance(data.get("school"), dict) else data
+        name = school.get("name")
+        return (name.strip() or None) if isinstance(name, str) else None
+
     async def async_get_activities(
         self, student_id: str, start: date, end_exclusive: date
     ) -> list[dict[str, Any]]:

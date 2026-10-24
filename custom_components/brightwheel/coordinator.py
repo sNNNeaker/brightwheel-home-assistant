@@ -45,6 +45,7 @@ class BrightwheelCoordinator(DataUpdateCoordinator[dict[str, StudentData]]):
         )
         self.api = api
         self._students: list[dict[str, Any]] = []
+        self._school_names: dict[str, str | None] = {}
 
     async def _async_update_data(self) -> dict[str, StudentData]:
         """Fetch recent activities for every student."""
@@ -61,10 +62,18 @@ class BrightwheelCoordinator(DataUpdateCoordinator[dict[str, StudentData]]):
                     f"{student.get('first_name') or ''} "
                     f"{student.get('last_name') or ''}"
                 ).strip() or student_id
+                school_id = student.get("school_id")
+                if school_id and school_id not in self._school_names:
+                    self._school_names[school_id] = (
+                        await self.api.async_get_school_name(school_id)
+                    )
                 result[student_id] = StudentData(
                     student_id=student_id,
                     name=name,
                     activities=sort_activities(activities),
+                    school_id=school_id,
+                    school_name=self._school_names.get(school_id),
+                    enrollment_status=student.get("enrollment_status"),
                 )
         except BrightwheelAuthError as err:
             raise ConfigEntryAuthFailed("Brightwheel login expired") from err

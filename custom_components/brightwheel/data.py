@@ -25,6 +25,9 @@ class StudentData:
     student_id: str
     name: str
     activities: list[dict[str, Any]] = field(default_factory=list)
+    school_id: str | None = None
+    school_name: str | None = None
+    enrollment_status: str | None = None
 
 
 def activity_time(activity: dict[str, Any]) -> datetime | None:

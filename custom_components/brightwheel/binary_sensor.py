@@ -44,3 +44,15 @@ class BrightwheelCheckedInSensor(BrightwheelEntity, BinarySensorEntity):
         if student is None:
             return None
         return is_checked_in_today(student.activities, dt_util.now())
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str | None] | None:
+        """School and enrollment status of this student record."""
+        student = self.student
+        if student is None:
+            return None
+        return {
+            "school": student.school_name,
+            "school_id": student.school_id,
+            "enrollment_status": student.enrollment_status,
+        }

@@ -8,11 +8,13 @@ A Home Assistant custom integration for [Brightwheel](https://mybrightwheel.com/
 
 | Entity | Description |
 |--------|-------------|
-| `binary_sensor` Checked in | On if the newest check-in/out event today is a check-in |
+| `binary_sensor` Checked in | On if the newest check-in/out event today is a check-in; attributes `school`, `school_id`, `enrollment_status` |
 | `sensor` Last check-in / Last check-out | Timestamp, attribute `by` |
 | `sensor` Latest activity | Type of the newest activity; attributes `time`, `note`, `by`, `today` (today's activities) |
 | `image` Latest photo | Newest photo from the last 14 days |
 | `event` Activity | Fires for each new activity: `check_in`, `check_out`, `photo`, `video`, `note`, `other` (attributes `time`, `note`, `by`, `image_url`) |
+
+Each child is a device; its model shows the school (name if Brightwheel returns it, else the school id) and the enrollment status when it is not "Active". A child enrolled at two schools appears twice; disable the device you don't need.
 
 All children of the account are added, one device each. Data is polled every 5 minutes.
 

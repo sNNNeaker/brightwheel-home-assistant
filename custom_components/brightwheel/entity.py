@@ -32,6 +32,7 @@ class BrightwheelEntity(CoordinatorEntity[BrightwheelCoordinator]):
             identifiers={(DOMAIN, student_id)},
             name=student.name if student else student_id,
             manufacturer="Brightwheel",
+            model=_school_label(student),
             entry_type=DeviceEntryType.SERVICE,
         )
 
@@ -44,3 +45,16 @@ class BrightwheelEntity(CoordinatorEntity[BrightwheelCoordinator]):
     def available(self) -> bool:
         """Entity is available while the student data exists."""
         return super().available and self.student is not None
+
+
+def _school_label(student: StudentData | None) -> str | None:
+    """School name for the device, with the enrollment status if not active."""
+    if student is None:
+        return None
+    label = student.school_name or (
+        f"School {student.school_id[:8]}" if student.school_id else None
+    )
+    status = student.enrollment_status
+    if label and status and status.lower() != "active":
+        label = f"{label} ({status})"
+    return label
