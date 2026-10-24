@@ -1,5 +1,13 @@
-"""Async API client for Brightwheel."""
+"""Async API client for Brightwheel.
 
+Modified 2026 by sNNNeaker: email/2FA login, new entities.
+"""
+
+from __future__ import annotations
+
+import asyncio
+from datetime import date
+import json
 import logging
 from typing import Any
 
@@ -8,155 +16,189 @@ import aiohttp
 _LOGGER = logging.getLogger(__name__)
 
 BASE_URL = "https://schools.mybrightwheel.com/api/v1"
-DEFAULT_HEADERS = {
-    "Content-Type": "application/json",
-    "X-Client-Version": "106",
+COOKIE_NAME = "_brightwheel_v2"
+TIMEOUT = 15
+
+_BASE_HEADERS = {
     "X-Client-Name": "web",
+    "X-Client-Version": "225",
+    "Accept": "application/json",
+    "Content-Type": "application/json",
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Origin": "https://schools.mybrightwheel.com",
+    "Referer": "https://schools.mybrightwheel.com/",
 }
 
 
-class BrightwheelAuthError(Exception):
-    """Raised when authentication fails."""
+class BrightwheelError(Exception):
+    """Base error for Brightwheel."""
 
 
-class BrightwheelClient:
-    """Async client for the Brightwheel API.
+class BrightwheelAuthError(BrightwheelError):
+    """Authentication failed or expired."""
 
-    Uses the shared HA aiohttp session but manages the Brightwheel auth
-    cookie manually via a header so as not to pollute the shared cookie jar.
 
-    Supports two auth modes:
-    1. Direct auth cookie (recommended) — bypasses PerimeterX bot protection
-    2. Email/password login (may be blocked by bot protection)
-    """
+class BrightwheelConnectionError(BrightwheelError):
+    """Brightwheel could not be reached."""
+
+
+class BrightwheelApi:
+    """Client for the (unofficial) Brightwheel web API."""
 
     def __init__(
         self,
         session: aiohttp.ClientSession,
-        email: str = "",
-        password: str = "",
-        auth_cookie: str | None = None,
+        token: str | None = None,
+        cookie: str | None = None,
+        csrf: str | None = None,
+        guardian_id: str | None = None,
     ) -> None:
+        """Initialize with the shared HA session and optional credentials."""
         self._session = session
-        self._email = email
-        self._password = password
-        self._auth_cookie: str | None = auth_cookie
-        self._user_id: str | None = None
+        self._token = token
+        self._cookie = cookie
+        self._csrf = csrf
+        self._guardian_id = guardian_id
 
-    @property
-    def _headers(self) -> dict[str, str]:
-        """Return request headers including the auth cookie when available."""
-        headers = {**DEFAULT_HEADERS}
-        if self._auth_cookie:
-            headers["Cookie"] = f"_brightwheel_v2={self._auth_cookie}"
+    def _headers(self, authenticated: bool) -> dict[str, str]:
+        headers = dict(_BASE_HEADERS)
+        if authenticated:
+            if self._token:
+                headers["X-Parse-Session-Token"] = self._token
+            if self._cookie:
+                headers["Cookie"] = f"{COOKIE_NAME}={self._cookie}"
+            if self._csrf:
+                headers["X-CSRF-Token"] = self._csrf
         return headers
 
-    async def authenticate(self) -> bool:
-        """Authenticate with Brightwheel.
-
-        If an auth cookie was provided, validates it by calling /users/me.
-        Otherwise, attempts email/password login (may fail due to bot protection).
-        """
-        if self._auth_cookie:
-            # Validate the pre-supplied cookie
-            try:
-                user = await self.get_user()
-                self._user_id = user.get("object_id")
-                _LOGGER.debug("Brightwheel cookie auth successful for user %s", self._user_id)
-                return True
-            except Exception:
-                _LOGGER.error("Brightwheel cookie validation failed")
-                self._auth_cookie = None
-                return False
-
-        # Fallback: email/password login (may be blocked by PerimeterX)
-        payload = {"user": {"email": self._email, "password": self._password}}
-        try:
-            async with self._session.post(
-                f"{BASE_URL}/sessions",
-                json=payload,
-                headers=DEFAULT_HEADERS,
-            ) as resp:
-                if resp.status != 200:
-                    _LOGGER.error(
-                        "Brightwheel auth failed with status %s (bot protection may be active)",
-                        resp.status,
-                    )
-                    return False
-
-                for cookie in resp.cookies.values():
-                    if cookie.key == "_brightwheel_v2":
-                        self._auth_cookie = cookie.value
-                        break
-
-                if not self._auth_cookie:
-                    raw = resp.headers.getall("Set-Cookie", [])
-                    for header_val in raw:
-                        if "_brightwheel_v2=" in header_val:
-                            part = header_val.split("_brightwheel_v2=")[1]
-                            self._auth_cookie = part.split(";")[0]
-                            break
-
-                if not self._auth_cookie:
-                    _LOGGER.error("Auth cookie not found in response")
-                    return False
-
-                _LOGGER.debug("Brightwheel email/password auth successful")
-                return True
-        except aiohttp.ClientError as err:
-            _LOGGER.error("Connection error during authentication: %s", err)
-            raise
-
-    async def get_user(self) -> dict[str, Any]:
-        """Get the current authenticated user."""
-        async with self._session.get(
-            f"{BASE_URL}/users/me", headers=self._headers
-        ) as resp:
-            resp.raise_for_status()
-            return await resp.json()
-
-    async def get_students(self) -> list[dict[str, Any]]:
-        """Get list of students for the authenticated guardian."""
-        if self._user_id is None:
-            user = await self.get_user()
-            self._user_id = user["object_id"]
-            _LOGGER.debug("Brightwheel user_id: %s", self._user_id)
-
-        async with self._session.get(
-            f"{BASE_URL}/guardians/{self._user_id}/students",
-            headers=self._headers,
-        ) as resp:
-            resp.raise_for_status()
-            data = await resp.json()
-            students = data.get("students", [])
-            _LOGGER.debug("Brightwheel found %d students", len(students))
-            if not students:
-                _LOGGER.warning("Brightwheel: no students found for this account")
-            return students
-
-    async def get_activities(
+    async def _request(
         self,
-        student_id: str,
-        start_date: str | None = None,
-        end_date: str | None = None,
+        method: str,
+        path: str,
+        *,
+        payload: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+        authenticated: bool = True,
+        login: bool = False,
+    ) -> tuple[dict[str, Any], str | None]:
+        """Send a request, return (json body, cookie value if set)."""
+        try:
+            async with asyncio.timeout(TIMEOUT):
+                async with self._session.request(
+                    method,
+                    f"{BASE_URL}{path}",
+                    json=payload,
+                    params=params,
+                    headers=self._headers(authenticated),
+                ) as resp:
+                    status = resp.status
+                    text = await resp.text()
+                    morsel = resp.cookies.get(COOKIE_NAME)
+                    cookie = morsel.value if morsel else None
+        except TimeoutError as err:
+            raise BrightwheelConnectionError("Timeout talking to Brightwheel") from err
+        except aiohttp.ClientError as err:
+            raise BrightwheelConnectionError("Cannot reach Brightwheel") from err
+
+        if status in (401, 403) or "E1200" in text:
+            raise BrightwheelAuthError("Authentication rejected")
+        if login and status in (400, 422):
+            raise BrightwheelAuthError("Login rejected")
+        if status == 429 or status >= 500:
+            raise BrightwheelConnectionError(f"Brightwheel unavailable (HTTP {status})")
+        if status >= 400:
+            raise BrightwheelError(f"Unexpected HTTP status {status}")
+
+        data: dict[str, Any] = {}
+        if text:
+            try:
+                parsed = json.loads(text)
+            except ValueError as err:
+                raise BrightwheelError("Invalid JSON from Brightwheel") from err
+            if isinstance(parsed, dict):
+                data = parsed
+        return data, cookie
+
+    async def async_start_login(self, email: str, password: str) -> bool:
+        """Start login; return True if a 2FA code was emailed."""
+        data, _ = await self._request(
+            "POST",
+            "/sessions/start",
+            payload={"user": {"email": email, "password": password}},
+            authenticated=False,
+            login=True,
+        )
+        return data.get("2fa_required") is True
+
+    async def async_finish_login(
+        self, email: str, password: str, code: str | None
+    ) -> dict[str, str | None]:
+        """Finish login and return token, cookie, csrf and guardian_id."""
+        payload: dict[str, Any] = {"user": {"email": email, "password": password}}
+        if code:
+            payload["2fa_code"] = code
+        data, cookie = await self._request(
+            "POST", "/sessions", payload=payload, authenticated=False, login=True
+        )
+        user = data.get("user")
+        guardian_id = user.get("object_id") if isinstance(user, dict) else None
+        self._token = data.get("token") or None
+        self._cookie = cookie
+        self._csrf = data.get("csrf") or None
+        if not (self._token or self._cookie):
+            raise BrightwheelAuthError("Login returned no credentials")
+        self._guardian_id = guardian_id
+        return {
+            "token": self._token,
+            "cookie": self._cookie,
+            "csrf": self._csrf,
+            "guardian_id": guardian_id,
+        }
+
+    async def async_get_guardian_id(self) -> str:
+        """Return the guardian id of the logged-in user."""
+        guardian_id = None
+        try:
+            data, _ = await self._request("GET", "/users/me")
+            guardian_id = data.get("object_id")
+        except BrightwheelAuthError:
+            raise
+        except BrightwheelError:
+            guardian_id = None
+        guardian_id = guardian_id or self._guardian_id
+        if not guardian_id:
+            raise BrightwheelError("Guardian id unknown")
+        self._guardian_id = guardian_id
+        return guardian_id
+
+    async def async_get_students(self) -> list[dict[str, Any]]:
+        """Return the student dicts of this guardian."""
+        guardian_id = await self.async_get_guardian_id()
+        data, _ = await self._request("GET", f"/guardians/{guardian_id}/students")
+        students: list[dict[str, Any]] = []
+        for item in data.get("students") or []:
+            if not isinstance(item, dict):
+                continue
+            student = item.get("student", item)
+            if isinstance(student, dict) and student.get("object_id"):
+                students.append(student)
+        return students
+
+    async def async_get_activities(
+        self, student_id: str, start: date, end_exclusive: date
     ) -> list[dict[str, Any]]:
-        """Get activities for a student, optionally filtered by date range."""
-        params: dict[str, str | int] = {"page": 0, "page_size": 50}
-        if start_date:
-            params["start_date"] = start_date
-        if end_date:
-            params["end_date"] = end_date
-
-        async with self._session.get(
-            f"{BASE_URL}/students/{student_id}/activities",
-            headers=self._headers,
-            params=params,
-        ) as resp:
-            resp.raise_for_status()
-            data = await resp.json()
-            return data.get("activities", [])
-
-    async def close(self) -> None:
-        """Clean up (no-op since we use the shared HA session)."""
-        self._auth_cookie = None
-        self._user_id = None
+        """Return activities from start up to (excluding) end_exclusive."""
+        data, _ = await self._request(
+            "GET",
+            f"/students/{student_id}/activities",
+            params={
+                "page": 0,
+                "page_size": 100,
+                "start_date": start.isoformat(),
+                "end_date": end_exclusive.isoformat(),
+            },
+        )
+        return [a for a in data.get("activities") or [] if isinstance(a, dict)]

@@ -2,23 +2,79 @@
   "config": {
     "step": {
       "user": {
-        "title": "Brightwheel Login",
-        "description": "Brightwheel uses bot protection that blocks direct login. You need to provide your auth cookie from a browser session.\n\nRun: node scripts/refresh_brightwheel_cookie.js\n\nOr copy the _brightwheel_v2 cookie from DevTools after logging in at schools.mybrightwheel.com.",
+        "title": "Brightwheel login",
+        "description": "Sign in with your Brightwheel parent account. Your password is not stored.",
         "data": {
-          "auth_cookie": "Auth Cookie (_brightwheel_v2)"
+          "email": "Email",
+          "password": "Password"
         }
       },
-      "reconfigure": {
-        "title": "Refresh Brightwheel Cookie",
-        "description": "The Brightwheel auth cookie expires periodically. Paste a fresh _brightwheel_v2 cookie below.\n\nRun: node scripts/refresh_brightwheel_cookie.js",
+      "two_factor": {
+        "title": "Brightwheel emailed you a code",
+        "description": "Enter the verification code Brightwheel just sent to your email.",
         "data": {
-          "auth_cookie": "Auth Cookie (_brightwheel_v2)"
+          "code": "Code"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Sign in to Brightwheel again",
+        "description": "Your Brightwheel login for {email} expired. Enter your password; a new code may be emailed to you.",
+        "data": {
+          "password": "Password"
         }
       }
     },
     "error": {
-      "invalid_auth": "Invalid or expired auth cookie. Please extract a fresh cookie.",
-      "cannot_connect": "Cannot connect to Brightwheel"
+      "invalid_auth": "Invalid email or password.",
+      "invalid_code": "Invalid or expired code.",
+      "cannot_connect": "Cannot connect to Brightwheel.",
+      "no_students": "No children found for this account.",
+      "unknown": "Unexpected error."
+    },
+    "abort": {
+      "already_configured": "This account is already configured.",
+      "reauth_successful": "Re-authentication successful.",
+      "wrong_account": "Please sign in with the same Brightwheel account."
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "checked_in": {
+        "name": "Checked in"
+      }
+    },
+    "sensor": {
+      "last_check_in": {
+        "name": "Last check-in"
+      },
+      "last_check_out": {
+        "name": "Last check-out"
+      },
+      "latest_activity": {
+        "name": "Latest activity"
+      }
+    },
+    "image": {
+      "latest_photo": {
+        "name": "Latest photo"
+      }
+    },
+    "event": {
+      "activity": {
+        "name": "Activity",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "check_in": "Check-in",
+              "check_out": "Check-out",
+              "photo": "Photo",
+              "video": "Video",
+              "note": "Note",
+              "other": "Other"
+            }
+          }
+        }
+      }
     }
   }
 }
