@@ -187,6 +187,24 @@ class BrightwheelApi:
                 students.append(student)
         return students
 
+    async def async_get_school_names(self) -> dict[str, str]:
+        """Return {school_id: name} from the guardian's school invites (/users/me)."""
+        try:
+            data, _ = await self._request("GET", "/users/me")
+        except BrightwheelError:
+            return {}
+        names: dict[str, str] = {}
+        for invite in data.get("school_invites") or []:
+            school = invite.get("school") if isinstance(invite, dict) else None
+            if not isinstance(school, dict):
+                continue
+            school_id, name = school.get("object_id"), school.get("name")
+            if school_id and isinstance(name, str) and name.strip():
+                names[str(school_id)] = name.strip()
+            else:
+                _LOGGER.debug("School invite without a name, keys: %s", sorted(school))
+        return names
+
     async def async_get_school_name(self, school_id: str) -> str | None:
         """Return the school's name, or None if Brightwheel doesn't tell us.
 
