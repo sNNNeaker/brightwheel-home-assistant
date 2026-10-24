@@ -1,3 +1,10 @@
+<p align="center">
+  <!-- Plain <img> with an absolute URL: the HACS/Marketplace README renderer
+       doesn't support <picture>/<source>, and relative paths only resolve on
+       GitHub. -->
+  <img alt="Brightwheel" src="https://raw.githubusercontent.com/sNNNeaker/brightwheel-home-assistant/master/custom_components/brightwheel/brand/logo%402x.png" width="420">
+</p>
+
 # Brightwheel for Home Assistant
 
 A Home Assistant custom integration for [Brightwheel](https://mybrightwheel.com/), the daycare app that shares check-ins, photos and notes with parents.
