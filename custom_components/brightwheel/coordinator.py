@@ -53,7 +53,9 @@ class BrightwheelCoordinator(DataUpdateCoordinator[dict[str, StudentData]]):
             if not self._students:
                 self._students = await self.api.async_get_students()
                 self._school_names.update(await self.api.async_get_school_names())
-            end = dt_util.now().date() + timedelta(days=1)
+            # The API filters dates in UTC; local evenings west of UTC are
+            # already tomorrow there.
+            end = dt_util.utcnow().date() + timedelta(days=1)
             start = end - timedelta(days=HISTORY_DAYS + 1)
             result: dict[str, StudentData] = {}
             for student in self._students:
